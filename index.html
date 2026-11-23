@@ -226,6 +226,14 @@ const COURSE=[
   sentences:[{es:"¿Dónde está el banco?",en:"Where is the bank?"},{es:"La tienda está cerca",en:"The store is near",alt:["The store is close","The store is nearby","The shop is near","The shop is close","The shop is nearby"]},{es:"El hotel está lejos de aquí",en:"The hotel is far from here"},{es:"Vivo en esta calle",en:"I live on this street",alt:["I live in this street"]}]},
  {id:"u4l3",title:"Travel",vocab:[["el tren","train"],["el boleto","ticket"],["el aeropuerto","airport"],["hoy","today"],["mañana","tomorrow"],["ahora","now"]],
   sentences:[{es:"Necesito un boleto",en:"I need a ticket"},{es:"El tren sale ahora",en:"The train leaves now",alt:["The train is leaving now"]},{es:"Voy al aeropuerto mañana",en:"I am going to the airport tomorrow",alt:["I go to the airport tomorrow"]},{es:"Hoy viajo a Madrid",en:"Today I travel to Madrid",alt:["I travel to Madrid today","Today I am traveling to Madrid","I am traveling to Madrid today"]}]}
+]},
+{id:"u5",title:"Days and routines",es:"El día a día",lessons:[
+ {id:"u5l1",title:"Days of the week",vocab:[["el lunes","Monday"],["el martes","Tuesday"],["el miércoles","Wednesday"],["el viernes","Friday"],["el sábado","Saturday"],["el domingo","Sunday"]],
+  sentences:[{es:"Hoy es lunes",en:"Today is Monday"},{es:"Mi día favorito es el sábado",en:"My favorite day is Saturday",alt:["My favourite day is Saturday"]},{es:"Trabajo el miércoles",en:"I work on Wednesday",alt:["I work Wednesday"]},{es:"El domingo no trabajo",en:"On Sunday I do not work",alt:["I do not work on Sunday"]}]},
+ {id:"u5l2",title:"Telling time",vocab:[["la hora","hour","time"],["el minuto","minute"],["la mañana","morning"],["la tarde","afternoon","evening"],["la noche","night"],["temprano","early"]],
+  sentences:[{es:"¿Qué hora es?",en:"What time is it?"},{es:"Es la una",en:"It is one o'clock",alt:["It is one"]},{es:"Son las tres de la tarde",en:"It is three in the afternoon",alt:["It is three o'clock in the afternoon"]},{es:"Llego temprano por la mañana",en:"I arrive early in the morning"}]},
+ {id:"u5l3",title:"Everyday verbs",vocab:[["trabajo","I work"],["vivo","I live"],["hablo","I speak","I talk"],["duermo","I sleep"],["estudio","I study"],["leo","I read"]],
+  sentences:[{es:"Hablo español con mi madre",en:"I speak Spanish with my mother",alt:["I speak Spanish with my mom"]},{es:"Estudio por la tarde",en:"I study in the afternoon",alt:["I study in the evening"]},{es:"Leo un libro en la cama",en:"I read a book in bed"},{es:"Duermo ocho horas",en:"I sleep eight hours"}]}
 ]}
 ];
 const ALL_LESSONS=COURSE.flatMap(u=>u.lessons.map(l=>({...l,unit:u})));
