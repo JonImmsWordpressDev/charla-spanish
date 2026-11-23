@@ -261,10 +261,14 @@ function tokens(s){const t=s.replace(/[¿?¡!.,]/g,"").split(/\s+/).filter(Boole
 
 /* ---------- State and persistence ---------- */
 const KEY="charla.v1",MAX_HEARTS=5,HEART_MS=20*60*1000,GOAL=30;
-const fresh=()=>({xp:0,streak:0,lastDay:"",hearts:MAX_HEARTS,heartsAt:0,done:{},daily:{},updatedAt:0});
+const fresh=()=>({xp:0,streak:0,lastDay:"",hearts:MAX_HEARTS,heartsAt:0,done:{},daily:{},missed:{},updatedAt:0});
 let state=fresh();
 try{const raw=localStorage.getItem(KEY);if(raw)state=Object.assign(fresh(),JSON.parse(raw));}catch(e){}
 let dbDoc=null,saving=false,dirty=false,synced=false;
+// missed: {spanish word: count}. A miss adds one, a correct answer takes one off, so words fade out of review once learned.
+function noteWord(w,ok){const m=state.missed||(state.missed={});const n=(m[w]||0)+(ok?-1:1);if(n>0)m[w]=n;else delete m[w];}
+function weakWords(n){const m=state.missed||{};return Object.keys(m).filter(w=>lessonOf(w)).sort((a,b)=>m[b]-m[a]).slice(0,n);}
+function lessonOf(w){return ALL_LESSONS.find(l=>l.vocab.some(v=>v[0]===w));}
 function save(){state.updatedAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}pushDb();}
 async function pushDb(){if(!dbDoc)return;if(saving){dirty=true;return;}saving=true;
   try{await dbDoc.set(JSON.parse(JSON.stringify(state)));}catch(e){if(e&&(e.code==="invalid_argument"||e.code==="revoked"||e.code==="not_granted")){dbDoc=null;synced=false;}}
@@ -298,14 +302,14 @@ function soundBtn(text,cls){return h("button",{class:"sound "+(cls||""),"aria-la
 
 /* ---------- Exercises ---------- */
 // Each returns {render(body, ctl), check()} where check gives {ok, correct, user, note, soft}
-function exChoice(prompt,shown,isEs,options,answer){let pick=null;return{prompt,ctx:`Question: ${prompt} ${shown||""}`,
+function exChoice(prompt,shown,isEs,options,answer,word){let pick=null;return{prompt,word,ctx:`Question: ${prompt} ${shown||""}`,
   render(body,ctl){if(shown)body.append(h("div",{class:"wordcard"},isEs&&hasVoice()?soundBtn(shown):null,h("span",{lang:isEs?"es":"en",text:shown})));
     const box=h("div",{class:"opts"});options.forEach(o=>box.append(h("button",{class:"opt","aria-pressed":"false",lang:isEs?"en":"es",text:o,onclick:e=>{pick=o;box.querySelectorAll(".opt").forEach(b=>b.setAttribute("aria-pressed",b===e.currentTarget));if(!isEs)say(o);ctl.ready(true);}})));
     body.append(box);if(isEs)say(shown);},
   check:()=>({ok:pick===answer,correct:answer,user:pick})};}
 function vocabPool(lesson){return lesson.unit.lessons.flatMap(l=>l.vocab);}
-function mcEsEn(v,lesson){const d=sample1(vocabPool(lesson).filter(x=>x[0]!==v[0]&&x[1]!==v[1]),3).map(x=>x[1]);return exChoice("What does this mean?",v[0],true,shuffle([v[1],...d]),v[1]);}
-function mcEnEs(v,lesson){const d=sample1(vocabPool(lesson).filter(x=>x[0]!==v[0]),3).map(x=>x[0]);return exChoice(`How do you say "${v[1]}"?`,"",false,shuffle([v[0],...d]),v[0]);}
+function mcEsEn(v,lesson){const d=sample1(vocabPool(lesson).filter(x=>x[0]!==v[0]&&x[1]!==v[1]),3).map(x=>x[1]);return exChoice("What does this mean?",v[0],true,shuffle([v[1],...d]),v[1],v[0]);}
+function mcEnEs(v,lesson){const d=sample1(vocabPool(lesson).filter(x=>x[0]!==v[0]),3).map(x=>x[0]);return exChoice(`How do you say "${v[1]}"?`,"",false,shuffle([v[0],...d]),v[0],v[0]);}
 function bankUI(body,ctl,answerTokens,distract,lang){const items=shuffle([...answerTokens,...distract]);const chosen=[];
   const line=h("div",{class:"line","aria-label":"Your answer"}),pool=h("div",{class:"pool"});
   function draw(){line.replaceChildren(...chosen.map((i,pos)=>h("button",{class:"chip",lang,text:items[i],onclick:()=>{chosen.splice(pos,1);draw();}})));
@@ -322,7 +326,7 @@ function listen(s,lesson){let get;return{prompt:"Tap what you hear",ctx:`Listeni
   render(body,ctl){body.append(h("div",{class:"row",style:"justify-content:center"},soundBtn(s.es,"big"),h("button",{class:"sound slow","aria-label":"Play slowly",text:"SLOW",onclick:()=>say(s.es,true)})));
     const t=tokens(s.es);get=bankUI(body,ctl,t,distractors(lesson,"es",t),"es");body.append(h("button",{class:"link",text:"Can't listen right now",onclick:()=>ctl.skip()}));say(s.es);},
   check(){const u=get();return{ok:norm(u)===norm(s.es),correct:s.es,user:u,note:s.en};}};}
-function typeEs(en,es){let input;const acc=esAccepted(es);return{prompt:"Write this in Spanish",ctx:`Translate to Spanish: "${en}"`,
+function typeEs(en,es,word){let input;const acc=esAccepted(es);return{prompt:"Write this in Spanish",word,ctx:`Translate to Spanish: "${en}"`,
   render(body,ctl){input=h("input",{class:"field",id:"answer",type:"text",lang:"es",autocomplete:"off",autocapitalize:"off",autocorrect:"off",spellcheck:"false",placeholder:"Type in Spanish","aria-label":"Your answer in Spanish",oninput:()=>ctl.ready(input.value.trim().length>0)});
     const acs=h("div",{class:"accents"},[..."áéíóúñ¿¡"].map(c=>h("button",{type:"button",text:c,"aria-label":"Insert "+c,onclick:()=>{const p=input.selectionStart??input.value.length;input.value=input.value.slice(0,p)+c+input.value.slice(input.selectionEnd??p);input.focus();input.setSelectionRange(p+1,p+1);ctl.ready(true);}})));
     body.append(h("div",{class:"wordcard"},h("span",{text:en})),input,acs);setTimeout(()=>input.focus(),50);},
@@ -342,10 +346,11 @@ function match(vocab){return{prompt:"Match the pairs",auto:true,ctx:"",
 
 function buildLesson(lesson){const v=lesson.vocab,s=lesson.sentences;const audio=hasVoice(),mic=!!caps.dict;
   return[()=>mcEsEn(v[0],lesson),()=>mcEsEn(v[1],lesson),()=>mcEnEs(v[2],lesson),()=>match(sample1(v,5)),()=>bankEsEn(s[0],lesson),()=>mcEsEn(v[4],lesson),()=>bankEnEs(s[1],lesson),
-    ()=>audio?listen(s[2],lesson):bankEsEn(s[2],lesson),()=>typeEs(v[5][1],v[5][0]),()=>bankEsEn(s[3],lesson),()=>mic?speak(s[0]):typeEs(s[0].en,s[0].es),()=>typeEs(v[3][1],v[3][0]),()=>bankEnEs(s[2],lesson)];}
+    ()=>audio?listen(s[2],lesson):bankEsEn(s[2],lesson),()=>typeEs(v[5][1],v[5][0],v[5][0]),()=>bankEsEn(s[3],lesson),()=>mic?speak(s[0]):typeEs(s[0].en,s[0].es),()=>typeEs(v[3][1],v[3][0],v[3][0]),()=>bankEnEs(s[2],lesson)];}
 function buildPractice(){let pool=ALL_LESSONS.filter(l=>isDone(l.id));if(!pool.length)pool=[ALL_LESSONS[0]];const pick=()=>pool[Math.floor(Math.random()*pool.length)];const rv=l=>l.vocab[Math.floor(Math.random()*l.vocab.length)],rs=l=>l.sentences[Math.floor(Math.random()*l.sentences.length)];
-  const mk=[l=>mcEsEn(rv(l),l),l=>mcEnEs(rv(l),l),l=>bankEsEn(rs(l),l),l=>bankEnEs(rs(l),l),l=>{const x=rv(l);return typeEs(x[1],x[0]);},l=>match(sample1(l.vocab,5)),l=>hasVoice()?listen(rs(l),l):bankEsEn(rs(l),l),l=>mcEsEn(rv(l),l)];
-  return shuffle(mk).map(f=>()=>f(pick()));}
+  const mk=[l=>mcEsEn(rv(l),l),l=>mcEnEs(rv(l),l),l=>bankEsEn(rs(l),l),l=>bankEnEs(rs(l),l),l=>{const x=rv(l);return typeEs(x[1],x[0],x[0]);},l=>match(sample1(l.vocab,5)),l=>hasVoice()?listen(rs(l),l):bankEsEn(rs(l),l),l=>mcEsEn(rv(l),l)];
+  const weak=weakWords(4).map((w,i)=>{const l=lessonOf(w),v=l.vocab.find(x=>x[0]===w);return[()=>mcEsEn(v,l),()=>mcEnEs(v,l),()=>typeEs(v[1],v[0],v[0])][i%3];});
+  return shuffle([...weak,...shuffle(mk).slice(weak.length).map(f=>()=>f(pick()))]);}
 
 /* ---------- Lesson runner ---------- */
 let L=null;
@@ -358,7 +363,7 @@ function lessonBar(){return h("div",{class:"lbar"},h("button",{class:"close","ar
 function showExercise(){const root=$("#lesson");if(L.i>=L.queue.length)return finishLesson();const slot=L.queue[L.i];const ex=slot.make();
   const body=h("div",{class:"lbody"},h("h2",{text:ex.prompt}));const foot=h("div",{class:"lfoot"});const checkBtn=h("button",{class:"btn wide",disabled:true,text:"Check"});
   const next=()=>{L.i++;if(!L.practice&&state.hearts<=0)return outOfHearts();showExercise();};
-  const resolve=res=>{if(res.ok||res.soft){L.cleared++;}else{L.mistakes++;if(!L.practice){state.hearts=Math.max(0,state.hearts-1);if(!state.heartsAt)state.heartsAt=Date.now();save();}if(!slot.again)L.queue.push({make:slot.make,again:true});else L.cleared++;}
+  const resolve=res=>{if(ex.word&&!res.soft){noteWord(ex.word,res.ok);save();}if(res.ok||res.soft){L.cleared++;}else{L.mistakes++;if(!L.practice){state.hearts=Math.max(0,state.hearts-1);if(!state.heartsAt)state.heartsAt=Date.now();save();}if(!slot.again)L.queue.push({make:slot.make,again:true});else L.cleared++;}
     root.querySelector(".lbar").replaceWith(lessonBar());body.querySelectorAll("button,input").forEach(b=>{if(!b.classList.contains("sound"))b.disabled=true;});feedback(foot,ex,res,next);};
   const ctl={ready:b=>{checkBtn.disabled=!b;},finish:resolve,skip:()=>{dictHandler=null;L.cleared++;L.i++;showExercise();}};
   checkBtn.addEventListener("click",()=>resolve(ex.check()));
