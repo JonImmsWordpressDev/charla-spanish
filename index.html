@@ -236,6 +236,22 @@ const COURSE=[
   sentences:[{es:"¿Qué hora es?",en:"What time is it?"},{es:"Es la una",en:"It is one o'clock",alt:["It is one"]},{es:"Son las tres de la tarde",en:"It is three in the afternoon",alt:["It is three o'clock in the afternoon"]},{es:"Llego temprano por la mañana",en:"I arrive early in the morning"}]},
  {id:"u5l3",title:"Everyday verbs",vocab:[["trabajo","I work"],["vivo","I live"],["hablo","I speak","I talk"],["duermo","I sleep"],["estudio","I study"],["leo","I read"]],
   sentences:[{es:"Hablo español con mi madre",en:"I speak Spanish with my mother",alt:["I speak Spanish with my mom"]},{es:"Estudio por la tarde",en:"I study in the afternoon",alt:["I study in the evening"]},{es:"Leo un libro en la cama",en:"I read a book in bed"},{es:"Duermo ocho horas",en:"I sleep eight hours"}]}
+]},
+{id:"u6",title:"Shopping and clothes",es:"De compras",lessons:[
+ {id:"u6l1",title:"Clothes",vocab:[["la camisa","shirt"],["los pantalones","pants","trousers"],["el vestido","dress"],["los zapatos","shoes"],["la falda","skirt"],["el abrigo","coat"]],
+  sentences:[{es:"Quiero una camisa nueva",en:"I want a new shirt"},{es:"Ella tiene un vestido",en:"She has a dress"},{es:"Necesito un abrigo",en:"I need a coat"},{es:"Mis zapatos son viejos",en:"My shoes are old"}]},
+ {id:"u6l2",title:"Colors",vocab:[["rojo","red"],["azul","blue"],["verde","green"],["negro","black"],["blanco","white"],["amarillo","yellow"]],
+  sentences:[{es:"La camisa es azul",en:"The shirt is blue"},{es:"Tengo un vestido rojo",en:"I have a red dress"},{es:"Los zapatos son negros",en:"The shoes are black"},{es:"Quiero el abrigo verde",en:"I want the green coat"}]},
+ {id:"u6l3",title:"Prices",vocab:[["¿cuánto cuesta?","how much is it?","how much does it cost?"],["el dinero","money"],["barato","cheap"],["caro","expensive"],["el euro","euro"],["pagar","to pay","pay"]],
+  sentences:[{es:"¿Cuánto cuesta la falda?",en:"How much is the skirt?",alt:["How much does the skirt cost?"]},{es:"El abrigo es muy caro",en:"The coat is very expensive"},{es:"Los pantalones son baratos",en:"The pants are cheap",alt:["The trousers are cheap"]},{es:"Cuesta diez euros",en:"It costs ten euros"}]}
+]},
+{id:"u7",title:"Weather and seasons",es:"El tiempo",lessons:[
+ {id:"u7l1",title:"The weather",vocab:[["hace calor","it is hot"],["hace frío","it is cold"],["llueve","it is raining","it rains"],["nieva","it is snowing","it snows"],["el sol","sun"],["la lluvia","rain"]],
+  sentences:[{es:"Hoy hace calor",en:"Today it is hot",alt:["It is hot today"]},{es:"Hace mucho frío",en:"It is very cold"},{es:"Llueve mucho hoy",en:"It is raining a lot today",alt:["It rains a lot today","Today it is raining a lot"]},{es:"¿Qué tiempo hace?",en:"What is the weather like?",alt:["How is the weather?"]}]},
+ {id:"u7l2",title:"Seasons",vocab:[["la primavera","spring"],["el verano","summer"],["el otoño","autumn","fall"],["el invierno","winter"],["la estación","season"],["el año","year"]],
+  sentences:[{es:"En invierno hace frío",en:"In winter it is cold",alt:["It is cold in winter","In the winter it is cold","It is cold in the winter"]},{es:"Me gusta el verano",en:"I like summer",alt:["I like the summer"]},{es:"El otoño es bonito",en:"Autumn is pretty",alt:["Autumn is beautiful","Autumn is nice","Fall is pretty","Fall is beautiful","Fall is nice"]},{es:"Nieva en invierno",en:"It snows in winter",alt:["It snows in the winter"]}]},
+ {id:"u7l3",title:"Sky and outdoors",vocab:[["el cielo","sky"],["la nube","cloud"],["el viento","wind"],["la nieve","snow"],["el paraguas","umbrella"],["la playa","beach"]],
+  sentences:[{es:"El cielo está azul",en:"The sky is blue"},{es:"Hay mucho viento",en:"There is a lot of wind",alt:["It is very windy"]},{es:"Necesito un paraguas",en:"I need an umbrella"},{es:"Vamos a la playa en verano",en:"We go to the beach in summer",alt:["We go to the beach in the summer","We are going to the beach in summer"]}]}
 ]}
 ];
 const ALL_LESSONS=COURSE.flatMap(u=>u.lessons.map(l=>({...l,unit:u})));
