@@ -374,9 +374,9 @@ function buildLesson(lesson){const v=lesson.vocab,s=lesson.sentences;const audio
   return[()=>mcEsEn(v[0],lesson),()=>mcEsEn(v[1],lesson),()=>mcEnEs(v[2],lesson),()=>match(sample1(v,5)),()=>bankEsEn(s[0],lesson),()=>mcEsEn(v[4],lesson),()=>bankEnEs(s[1],lesson),
     ()=>audio?listen(s[2],lesson):bankEsEn(s[2],lesson),()=>typeEs(v[5][1],v[5][0],v[5][0]),()=>bankEsEn(s[3],lesson),()=>mic?speak(s[0]):typeEs(s[0].en,s[0].es),()=>typeEs(v[3][1],v[3][0],v[3][0]),()=>bankEnEs(s[2],lesson)];}
 function buildPractice(){let pool=ALL_LESSONS.filter(l=>isDone(l.id));if(!pool.length)pool=[ALL_LESSONS[0]];const pick=()=>pool[Math.floor(Math.random()*pool.length)];const rv=l=>l.vocab[Math.floor(Math.random()*l.vocab.length)],rs=l=>l.sentences[Math.floor(Math.random()*l.sentences.length)];
-  const mk=[l=>mcEsEn(rv(l),l),l=>mcEnEs(rv(l),l),l=>bankEsEn(rs(l),l),l=>bankEnEs(rs(l),l),l=>{const x=rv(l);return typeEs(x[1],x[0],x[0]);},l=>match(sample1(l.vocab,5)),l=>hasVoice()?listen(rs(l),l):bankEsEn(rs(l),l),l=>mcEsEn(rv(l),l)];
+  const mk=[l=>{const x=rv(l);return()=>mcEsEn(x,l);},l=>{const x=rv(l);return()=>mcEnEs(x,l);},l=>{const x=rs(l);return()=>bankEsEn(x,l);},l=>{const x=rs(l);return()=>bankEnEs(x,l);},l=>{const x=rv(l);return()=>typeEs(x[1],x[0],x[0]);},l=>{const x=sample1(l.vocab,5);return()=>match(x);},l=>{const x=rs(l);return()=>hasVoice()?listen(x,l):bankEsEn(x,l);},l=>{const x=rv(l);return()=>mcEsEn(x,l);}];
   const weak=weakWords(4).map((w,i)=>{const l=lessonOf(w),v=l.vocab.find(x=>x[0]===w);return[()=>mcEsEn(v,l),()=>mcEnEs(v,l),()=>typeEs(v[1],v[0],v[0])][i%3];});
-  return shuffle([...weak,...shuffle(mk).slice(weak.length).map(f=>()=>f(pick()))]);}
+  return shuffle([...weak,...shuffle(mk).slice(weak.length).map(f=>f(pick()))]);}
 
 /* ---------- Lesson runner ---------- */
 let L=null;
