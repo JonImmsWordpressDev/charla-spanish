@@ -287,7 +287,7 @@ function tokens(s){const t=s.replace(/[¿?¡!.,]/g,"").split(/\s+/).filter(Boole
 
 /* ---------- State and persistence ---------- */
 const KEY="charla.v1",MAX_HEARTS=5,HEART_MS=20*60*1000,GOAL=30;
-const fresh=()=>({xp:0,streak:0,lastDay:"",hearts:MAX_HEARTS,heartsAt:0,done:{},daily:{},missed:{},updatedAt:0});
+const fresh=()=>({xp:0,streak:0,lastDay:"",hearts:MAX_HEARTS,heartsAt:0,done:{},daily:{},missed:{},updatedAt:0,resetAt:0});
 let state=fresh();
 try{const raw=localStorage.getItem(KEY);if(raw)state=Object.assign(fresh(),JSON.parse(raw));}catch(e){}
 let dbDoc=null,saving=false,dirty=false,synced=false;
@@ -295,10 +295,27 @@ let dbDoc=null,saving=false,dirty=false,synced=false;
 function noteWord(w,ok){const m=state.missed||(state.missed={});const n=(m[w]||0)+(ok?-1:1);if(n>0)m[w]=n;else delete m[w];}
 function weakWords(n){const m=state.missed||{};return Object.keys(m).filter(w=>lessonOf(w)).sort((a,b)=>m[b]-m[a]).slice(0,n);}
 function lessonOf(w){return ALL_LESSONS.find(l=>l.vocab.some(v=>v[0]===w));}
-function save(){state.updatedAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}pushDb();}
+// Two devices (or a long-open tab) each hold a copy, so a write merges with the account copy instead of replacing it.
+// A copy that has not seen the latest "Reset all progress" (older resetAt) is dropped so the reset sticks.
+function mergeProgress(a,b){a=Object.assign(fresh(),a);b=Object.assign(fresh(),b);
+  if(a.resetAt!==b.resetAt){const keep=a.resetAt>b.resetAt?a:b;return JSON.parse(JSON.stringify(keep));}
+  const newer=a.updatedAt>=b.updatedAt?a:b;const maxBy=(x,y)=>{const o={};for(const k of Object.keys(Object.assign({},x,y)).sort())o[k]=Math.max(x[k]||0,y[k]||0);return o;};
+  const day=a.lastDay===b.lastDay?{lastDay:a.lastDay,streak:Math.max(a.streak,b.streak)}:a.lastDay>b.lastDay?{lastDay:a.lastDay,streak:a.streak}:{lastDay:b.lastDay,streak:b.streak};
+  const daily=maxBy(a.daily,b.daily),keep={};for(let i=0;i<14;i++){const k=dayStr(daysAgo(i));if(daily[k])keep[k]=daily[k];}
+  return JSON.parse(JSON.stringify({xp:Math.max(a.xp,b.xp),streak:day.streak,lastDay:day.lastDay,hearts:newer.hearts,heartsAt:newer.heartsAt,
+    done:maxBy(a.done,b.done),daily:keep,missed:maxBy(a.missed,b.missed),updatedAt:Math.max(a.updatedAt,b.updatedAt),resetAt:a.resetAt}));}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+// Folds the account copy into state; true when that changed what this device shows.
+function absorb(d){const before=JSON.stringify(state);state=mergeProgress(state,d||{});saveLocal();return JSON.stringify(state)!==before;}
+function dbFail(e){if(e&&(e.code==="invalid_argument"||e.code==="revoked"||e.code==="not_granted")){dbDoc=null;synced=false;}}
+function save(){state.updatedAt=Date.now();saveLocal();pushDb();}
 async function pushDb(){if(!dbDoc)return;if(saving){dirty=true;return;}saving=true;
-  try{await dbDoc.set(JSON.parse(JSON.stringify(state)));}catch(e){if(e&&(e.code==="invalid_argument"||e.code==="revoked"||e.code==="not_granted")){dbDoc=null;synced=false;}}
+  try{const snap=await dbDoc.get();const changed=snap&&snap.exists?absorb(snap.data()):false;await dbDoc.set(JSON.parse(JSON.stringify(state)));if(changed)render();}catch(e){dbFail(e);}
   saving=false;if(dirty){dirty=false;pushDb();}}
+// Merges a freshly read account copy and writes back only if this device had something the account lacked.
+function reconcile(d){const changed=absorb(d);if(JSON.stringify(state)!==JSON.stringify(mergeProgress(d,d)))pushDb();return changed;}
+async function pullDb(){if(!dbDoc||saving)return;try{const snap=await dbDoc.get();if(snap&&snap.exists&&reconcile(snap.data()||{}))render();}catch(e){dbFail(e);}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")pullDb();});
 function tickHearts(){if(state.hearts>=MAX_HEARTS){state.heartsAt=0;return;}if(!state.heartsAt){state.heartsAt=Date.now();return;}
   const gained=Math.floor((Date.now()-state.heartsAt)/HEART_MS);if(gained>0){state.hearts=Math.min(MAX_HEARTS,state.hearts+gained);state.heartsAt=state.hearts>=MAX_HEARTS?0:state.heartsAt+gained*HEART_MS;}}
 const nextHeartMin=()=>state.hearts>=MAX_HEARTS||!state.heartsAt?0:Math.max(1,Math.ceil((state.heartsAt+HEART_MS-Date.now())/60000));
@@ -317,9 +334,9 @@ use("sample").then(s=>{caps.sample=s||null;if(view==="tutor")render();});
 use("tts").then(t=>{caps.tts=t||null;});
 use("dictation").then(d=>{if(!d)return;caps.dict=d;try{d.onPartial(({text})=>dictHandler&&dictHandler("partial",text));d.onFinal(({text})=>dictHandler&&dictHandler("final",text));d.onState(({state:s})=>dictHandler&&dictHandler("state",s));}catch(e){caps.dict=null;}if(view==="tutor")render();});
 (async()=>{const [db,user]=await Promise.all([use("db"),use("user")]);if(!db||!user)return;const id=await user.id();if(!id)return;
-  const ref=db.doc("data/users/"+id+"/progress");const snap=await Promise.race([ref.get(),new Promise(r=>setTimeout(()=>r(null),10000))]);if(!snap)return;
-  dbDoc=ref;synced=true;if(snap.exists){const d=snap.data()||{};if((d.updatedAt||0)>(state.updatedAt||0)){state=Object.assign(fresh(),JSON.parse(JSON.stringify(d)));try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}else if(state.updatedAt>(d.updatedAt||0))pushDb();}else if(state.xp>0)pushDb();
-  render();})().catch(()=>{});
+  const ref=db.doc("data/users/"+id+"/progress");
+  // A slow first read still attaches the account when it arrives, instead of leaving the session local-only.
+  ref.get().then(snap=>{dbDoc=ref;synced=true;if(snap.exists)reconcile(snap.data()||{});else if(state.xp>0||state.resetAt)pushDb();render();}).catch(()=>{});})().catch(()=>{});
 const hasVoice=()=>!!caps.tts||("speechSynthesis" in window);
 async function say(text,slow){
   if(caps.tts){try{await caps.tts.speak(text,{language:"es",rate:slow?0.7:1});return;}catch(e){if(e&&e.code==="not_granted")caps.tts=null;else return;}}
@@ -439,7 +456,7 @@ function learnView(){const cur=currentLesson();const t=todayXp();const out=[];
   return out;}
 function profileView(){const doneCount=ALL_LESSONS.filter(l=>isDone(l.id)).length;const words=ALL_LESSONS.filter(l=>isDone(l.id)).reduce((a,l)=>a+l.vocab.length,0);
   const days=[...Array(7)].map((_,i)=>{const d=daysAgo(6-i);return{k:dayStr(d),label:d.toLocaleDateString("en-US",{weekday:"short"}),xp:state.daily[dayStr(d)]||0};});const max=Math.max(GOAL,...days.map(d=>d.xp));
-  let armed=false;const reset=h("button",{class:"link",text:"Reset all progress",onclick:()=>{if(!armed){armed=true;reset.textContent="Tap again to erase everything";return;}state=fresh();save();render();}});
+  let armed=false;const reset=h("button",{class:"link",text:"Reset all progress",onclick:()=>{if(!armed){armed=true;reset.textContent="Tap again to erase everything";return;}state=fresh();state.resetAt=Date.now();save();render();}});
   return[h("h1",{style:"font-size:1.6rem;margin-bottom:14px",text:"Your progress"}),
     h("div",{class:"tiles3"},h("div",{class:"card"},h("b",{text:String(liveStreak())}),h("span",{class:"small muted",text:"Day streak"})),h("div",{class:"card"},h("b",{text:String(state.xp)}),h("span",{class:"small muted",text:"Total XP"})),h("div",{class:"card"},h("b",{text:String(words)}),h("span",{class:"small muted",text:"Words learned"}))),
     h("div",{class:"card",style:"margin-top:12px"},h("h3",{text:"XP this week"}),h("div",{class:"week"},days.map(d=>h("div",{class:d.k===dayStr()?"today":""},String(d.xp),h("i",{style:`height:${Math.round(80*d.xp/max)}px`}),d.label)))),
